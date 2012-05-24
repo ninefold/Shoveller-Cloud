@@ -147,7 +147,7 @@ for f in allfiles:
         detected_file_type = mimetypes.guess_type(local_path)
         printable_file_type = detected_file_type[0]
         if printable_file_type == None:
-          printable_file_type = 'application/binary'
+            printable_file_type = 'application/binary'
         extra_settings = {'content_type':printable_file_type}
         try:
             driver.upload_object(local_path,container,file_name,extra=extra_settings)
