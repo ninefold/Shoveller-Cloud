@@ -10,20 +10,19 @@ import os
 import datetime
 import time
 import sys
+import logging
 import mimetypes
 mimetypes.init()
 mimetypes.add_type('text/plain', '.bak', strict=True)
 mimetypes.add_type('text/plain', '.php', strict=True)
 
 # Checking that all the arguments were entered on the command line, exiting with a message if not.
-def checkstart():
-    if len(sys.argv) != 4:
-        argumentsnotset = 'One or more arguments were not passed. \nUsage is like so: \nPython Shoveller-Cloud.py access-token.txt shared-secret.txt STARTING-DIRECTORY-PATH datestamp=on'
-        print argumentsnotset
-        sys.exit(1)	
+if len(sys.argv) < 5:
+    argumentsnotset = '\nError: one or more arguments were not passed. \n\nUsage is like so: \n\nPython Shoveller-Cloud.py access-token.txt shared-secret.txt STARTING-DIRECTORY-PATH datestamp=on'
+    print argumentsnotset
+    sys.exit(1)	
 
 #Set command line arguments and default variables
-
 # Processing text file to retrieve access token
 access_token_file = open(sys.argv[1])
 for line in access_token_file:
@@ -41,6 +40,7 @@ print 'Processing string for starting directory: ' + scandir
 scandir=(string.replace(scandir, "\\", "/"))
 #print 'Slashes flipped in starting directory: ' + scandir
 #scandir = "/test"
+loggydatestamp = datetime.date.today().strftime("%d-%B-%Y")
 date_stamp_toggle = sys.argv[4]
 if (date_stamp_toggle == "datestamp=on"):
     rootstring="O"
@@ -53,6 +53,14 @@ else:
     rootstring=''
     datestamp=''
     container_name = ('')
+# Set up logging file
+logfilename = loggydatestamp + '-Shoveller-Cloud' + '.log'
+print 'Logging to ' + logfilename
+logging.basicConfig(filename=logfilename,filemode='w',level=logging.INFO,format='%(asctime)s %(message)s')
+initialloggystring = 'New scan started.' + loggydatestamp
+print initialloggystring
+logging.info(initialloggystring)
+errorcount = 0
 
 print '\nLogging in...'
 #Security Block -- Logging in with our certificates
@@ -61,20 +69,19 @@ Ninefold = get_driver(Provider.NINEFOLD)
 driver = Ninefold(access_token, shared_secret)
 # This plays out as driver = Ninefold('YOUR Atmos Access Token HERE', 'YOUR Atmos Shared Secret HERE')
 
-#Fuctions for printing the list of files and folders in cloud storage
+#Functions for printing the list of files and folders in cloud storage
 def showcloudassets():
-    containers = driver.list_containers()
-    print '\nList of Containers\n'
-    pprint(containers)
-    print '\n'
+    try:
+        containers = driver.list_containers()
+        print '\nList of Containers\n'
+        pprint(containers)
+        print '\n'
+    except:
+        print "*** Error occurred: ", sys.exc_info()[0] , " ***"
+        print 'Exiting...'
+        sys.exit(1)	
 
-def showlocalassets():
-    print ('List of local files that will be uploaded:\n\n')
-    for a in allfiles:
-        print "file: ", a
-    for z in alldirs:
-        print "directory: ", z
-    print ('\nEnd list of local files.\n')
+#showcloudassets()
 
 #Scanning all children of the starting directory
 allfiles = [] #store all files found
@@ -90,7 +97,9 @@ for root,dir,files in os.walk(scandir):
 #            time.sleep(10)
         except ContainerDoesNotExistError:
             container=driver.create_container(datestamp)
-            print '\nCreating base directory in cloud storage with name: ' + datestamp
+            baseloggystring = '\nCreating base directory in cloud storage with name: ' + loggydatestamp
+            print baseloggystring
+            logging.info(baseloggystring)
 #            time.sleep(10)
     dirlist = [ os.path.join(root,di) for di in dir ]
     for d in dirlist: 
@@ -106,6 +115,14 @@ for root,dir,files in os.walk(scandir):
         object_name = f
 print "\n"
 
+def showlocalassets():
+    print ('List of local files that will be uploaded:\n\n')
+    for a in allfiles:
+        print "file: ", a
+    for z in alldirs:
+        print "directory: ", z
+    print ('\nEnd list of local files.\n')
+
 showlocalassets()
 
 #Upload folders to Cloud Storage
@@ -117,7 +134,9 @@ for d in alldirs:
         container=driver.get_container(container_name) #Check for the file's existence in cloud storage
         print "\n* Directory already exists (skipping):\n" + datestamp + d
     except ContainerDoesNotExistError:
-        print '\n* Creating directory in Cloud Storage: \n'+ datestamp + d
+        folderloggystring = '\n* Creating directory in Cloud Storage: \n'+ loggydatestamp + d
+        print folderloggystring
+        logging.info(folderloggystring)
         container = driver.create_container(container_name=container_name)
 print "\nFinished creating directories.\n"
 
@@ -132,7 +151,9 @@ for f in allfiles:
         container=driver.get_container(datestamp + f) #Check for the file's existence in cloud storage
         print "\n* File already exists (skipping):\n" + cloud_path
     except ContainerDoesNotExistError:
-        print "\n* Uploading to Cloud Storage: " + cloud_path
+        uploadloggystring = "\n* Uploading to Cloud Storage: " + cloud_path
+        print uploadloggystring
+        logging.info(uploadloggystring)
         URL = (cloud_path)
         #print "\nSplitting off the file name from: " + URL
         file_name = URL.rsplit('/', 1)[1] # Split off the filename from path
@@ -152,10 +173,17 @@ for f in allfiles:
         try:
             driver.upload_object(local_path,container,file_name,extra=extra_settings)
         except:
-            print "*** Unexpected error", sys.exc_info()[0] , " -- retrying. ***"
+            print "\n*** Unexpected error", sys.exc_info()[0] , " ***\n"
             #raise
-        print '*** Success uploading: ' + file_name
+            errorcode = sys.exc_info()[0]
+            errorloggystring = ('An unexpected Error ' + 'occurred on file: ' + file_name + ' in folder' + local_path)
+            logging.info(errorloggystring)
+            logging.info(errorcode)
+            errorcount = errorcount + 1
 
-print "\n*** END UPLOAD PROCESS ***\n"
+endloggystring = "\n*** END UPLOAD PROCESS ***\n"
+logging.info(endloggystring)
 
 showcloudassets()
+
+print 'Process complete. ', errorcount, ' error(s) were found. \nSee the logfile: ', logfilename, ' for details.'
