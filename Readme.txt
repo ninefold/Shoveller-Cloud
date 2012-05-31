@@ -12,3 +12,8 @@ http://libcloud.apache.org/
 
 Licensed under the GPL 2.0 (GNU General Public License, Version 2)
 
+Known issues: 
+ * The specified starting folder must not have spaces in its name.
+ * Any subfolders with spaces in the name will have the spaces converted to underscores. 
+ * Files with a file size of zero bytes will not be uploaded.
+
