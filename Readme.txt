@@ -2,7 +2,7 @@ Shoveller Cloud
 
 A Python script for uploading files to cloud storage. 
 
-By Ed Dawson (edwin.dawson@gmail.com)
+By Ed Dawson (edwin.dawson@gmail.com), @TheRealEdDawson
 
 Requires the Python 2.7.3 runtime:
 http://python.org/download/releases/2.7.3/
