@@ -1,6 +1,6 @@
 Shoveller Cloud
 
-A Python script for uploading a large directory tree (with all files) to cloud storage. 
+A Python script for uploading a large directory tree (with all files) to Ninefold cloud storage. 
 
 Requires the Python 2.7.3 runtime:
 http://python.org/download/releases/2.7.3/
