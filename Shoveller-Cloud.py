@@ -34,19 +34,15 @@ shared_secret_file = open(sys.argv[2])
 for line in shared_secret_file:
     shared_secret = line.rstrip()
 shared_secret_file.close()
-#print 'Shared Secret = ', shared_secret
 scandir = sys.argv[3]
 print 'Processing string for starting directory: ' + scandir
 scandir=(string.replace(scandir, "\\", "/"))
-#print 'Slashes flipped in starting directory: ' + scandir
-#scandir = "/test"
 loggydatestamp = datetime.date.today().strftime("%d-%B-%Y")
 date_stamp_toggle = sys.argv[4]
 if (date_stamp_toggle == "datestamp=on"):
     rootstring="O"
     print 'Datestamping is ON'
     datestamp = datetime.date.today().strftime("%d-%B-%Y")
-    #print datestamp
     container_name = (datestamp)
 else:
     print 'Datestamping is OFF'
@@ -79,9 +75,7 @@ def showcloudassets():
     except:
         print "*** Error occurred: ", sys.exc_info()[0] , " ***"
         print 'Exiting...'
-        sys.exit(1)	
-
-#showcloudassets()
+        sys.exit(1)
 
 #Scanning all children of the starting directory
 allfiles = [] #store all files found
@@ -93,14 +87,14 @@ for root,dir,files in os.walk(scandir):
         alldirs.append(rootstring)
         try:
             container=driver.get_container(datestamp) #Check for the file's existence in cloud storage
-            print "\nBase directory already exists: " + datestamp + " -- skipping."
-#            time.sleep(10)
+            baseloggystring = "\nBase directory already exists: " + datestamp + " -- skipping."
+            print baseloggystring
+            logging.info(baseloggystring)
         except ContainerDoesNotExistError:
             container=driver.create_container(datestamp)
             baseloggystring = '\nCreating base directory in cloud storage with name: ' + loggydatestamp
             print baseloggystring
             logging.info(baseloggystring)
-#            time.sleep(10)
     dirlist = [ os.path.join(root,di) for di in dir ]
     for d in dirlist: 
         #Code to convert backslashes to forward slashes
@@ -116,11 +110,19 @@ for root,dir,files in os.walk(scandir):
 print "\n"
 
 def showlocalassets():
+    # Setting default values for file and directory iterators to allow error detection
+    a = ""
+    z = ""
     print ('List of local files that will be uploaded:\n\n')
     for a in allfiles:
         print "file: ", a
+    if (a == ""):
+        print "Warning: no files detected in the chosen path."
     for z in alldirs:
         print "directory: ", z
+    if (z == ""):
+        print "FATAL: Invalid directory name was detected. Did you specify a path with spaces in it?"
+        sys.exit(1)
     print ('\nEnd list of local files.\n')
 
 showlocalassets()
@@ -132,7 +134,9 @@ for d in alldirs:
     container_name = (datestamp + d)
     try:
         container=driver.get_container(container_name) #Check for the file's existence in cloud storage
-        print "\n* Directory already exists (skipping):\n" + datestamp + d
+        folderloggystring = "\n* Directory already exists (skipping):\n" + datestamp + d
+        print folderloggystring
+        logging.info(folderloggystring)
     except ContainerDoesNotExistError:
         folderloggystring = '\n* Creating directory in Cloud Storage: \n'+ loggydatestamp + d
         print folderloggystring
@@ -146,24 +150,19 @@ for f in allfiles:
     local_path = (f)
     f=(string.replace(f, " ", "_")) # Converting spaces to underscores
     cloud_path = (datestamp + f)
-    #print '\nProcessing: ' + f 
     try:
         container=driver.get_container(datestamp + f) #Check for the file's existence in cloud storage
-        print "\n* File already exists (skipping):\n" + cloud_path
+        uploadloggystring = "\n* File already exists (skipping):\n" + cloud_path
+        print uploadloggystring
+        logging.info(uploadloggystring)
     except ContainerDoesNotExistError:
         uploadloggystring = "\n* Uploading to Cloud Storage: " + cloud_path
         print uploadloggystring
         logging.info(uploadloggystring)
         URL = (cloud_path)
-        #print "\nSplitting off the file name from: " + URL
         file_name = URL.rsplit('/', 1)[1] # Split off the filename from path
-        #print 'RESULTS OF FILENAME SPLIT-OFF: ' + file_name
         path_directory = URL.rpartition('/') # Split off the pathname from path
-        #print 'RESULTS OF PATHNAME SPLIT-OFF: ' + path_directory[0]
-        #print 'local_path = ' + local_path
-        #print 'path_directory[0] = ' + path_directory[0]
         container=driver.get_container(path_directory[0])
-        #print 'file_name = ' + file_name
         #Adding a content-type setting
         detected_file_type = mimetypes.guess_type(local_path)
         printable_file_type = detected_file_type[0]
@@ -174,7 +173,6 @@ for f in allfiles:
             driver.upload_object(local_path,container,file_name,extra=extra_settings)
         except:
             print "\n*** Unexpected error", sys.exc_info()[0] , " ***\n"
-            #raise
             errorcode = sys.exc_info()[0]
             errorloggystring = ('An unexpected Error ' + 'occurred on file: ' + file_name + ' in folder' + local_path)
             logging.info(errorloggystring)
@@ -187,3 +185,9 @@ logging.info(endloggystring)
 showcloudassets()
 
 print 'Process complete. ', errorcount, ' error(s) were found. \nSee the logfile: ', logfilename, ' for details.'
+
+# Sending correct system exit code (transmission errors) for bash detection
+if (errorcount > 0): sys.exit(1)
+
+# Sending correct system exit code (no errors) for bash detection
+sys.exit(0)
