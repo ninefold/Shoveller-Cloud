@@ -182,9 +182,12 @@ for f in allfiles:
 endloggystring = "\n*** END UPLOAD PROCESS ***\n"
 logging.info(endloggystring)
 
+print "\nYour folders in the cloud (latest at bottom of list)"
 showcloudassets()
 
-print 'Process complete. ', errorcount, ' error(s) were found. \nSee the logfile: ', logfilename, ' for details.'
+endloggystring = ("Process complete. " + str(errorcount) + " error(s) were found. \nSee the logfile: " + logfilename + " for details.")
+print endloggystring
+logging.info(endloggystring)
 
 # Sending correct system exit code (transmission errors) for bash detection
 if (errorcount > 0): sys.exit(1)
